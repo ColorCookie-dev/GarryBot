@@ -118,7 +118,7 @@ async def ' + i + '(ctx):\n\
     @bot.command()
     async def ping(ctx):
         '''Gets the latency of the bot'''
-        latency = 1000 * bot.latency  # Included in the Discord.py library
+        latency = round(bot.latency * 1000)  # Included in the Discord.py library
         await ctx.send(str(latency) + 'ms')
 
     @bot.command()
