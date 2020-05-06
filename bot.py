@@ -10,9 +10,12 @@ class DBConnect:
         self.conn = sqlite3.connect(db)
         c = self.conn.cursor()
         # Create table
-        c.execute('''CREATE TABLE links
-                     (term text primary key, href text)''')
-        self.conn.commit()
+        try:
+            c.execute('''CREATE TABLE links
+                         (term text primary key, href text)''')
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            print('Using existing cache of memes')
 
     def __enter__(self):
         pass
@@ -20,7 +23,7 @@ class DBConnect:
     def __exit__(self, type, value, tb):
         self.conn.close()
 
-db_conn = DBConnect()
+db_conn = DBConnect('meme_cache.db')
 with db_conn:
 
     bot = commands.Bot(command_prefix='~')
@@ -46,22 +49,25 @@ async def ' + i + '(ctx):\n\
     async def gs(ctx, *, arg):
         '''Searches the phrase given on google'''
 
-        async with ctx.typing():
+        # sanitization
+        searchTerm = list(arg)
+        for i in searchTerm:
+            if not i.isalnum and i not in "'+.:":
+                searchTerm.remove(i)
+        searchTerm = ''.join(searchTerm)
 
-            # sanitization
-            searchTerm = list(arg)
-            for i in searchTerm:
-                if not i.isalnum and i not in "'+.:":
-                    searchTerm.remove(i)
-            searchTerm = ''.join(searchTerm)
-
-            cur = db_conn.conn.cursor()
-            for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
+        cur = db_conn.conn.cursor()
+        for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
+            url = row[1]
+            if url:
                 embed = discord.Embed()
-                embed.set_image(url=row[1])
+                embed.set_image(url=url)
                 await ctx.send(embed=embed)
-                return
+            else:
+                await ctx.send('Couldn\'t find the searched image.')
+            return
 
+        async with ctx.typing():
             gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
 
             _search_params = {
@@ -82,6 +88,9 @@ async def ' + i + '(ctx):\n\
             await ctx.send(embed=embed)
             break
         else:
+            cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, ""))
+            db_conn.conn.commit()
+
             await ctx.send('Couldn\'t find the searched image.')
 
     @bot.command()
