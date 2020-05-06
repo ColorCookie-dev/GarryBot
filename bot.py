@@ -35,101 +35,121 @@ with db_conn:
         'coffindance': ('https://media0.giphy.com/media/j6ZlX8ghxNFRknObVk/giphy.gif?cid=ecf05e471a1b565aa6951015ad6c9ec2eb2de8a9bed0465d&rid=giphy.gif', 'coffin dance'),
     }
 
+    class Quick_Reactions(commands.Cog):
+        pass
+
+    dyn_quick_functions_code = "\
+class Quick_Reactions(commands.Cog, name='Quick'):\n\
+    '''For Quick Reactions to memes'''\n"
+
     for i in quick_react_dict:
         url, meme = quick_react_dict[i]
 
-        exec('@bot.command()\n\
-async def ' + i + '(ctx):\n\
-    \'\'\'embeds '+ meme + ' meme\'\'\'\n\
-    embed = discord.Embed()\n\
-    embed.set_image(url="' + url +'")\n\
-    await ctx.send(embed=embed)')
+        dyn_quick_functions_code += f"\
+    @commands.command()\n\
+    async def {i}(self, ctx):\n\
+        '''embeds {meme} meme'''\n\
+        embed = discord.Embed()\n\
+        embed.set_image(url='{url}')\n\
+        await ctx.send(embed=embed)\n"
 
-    @bot.command()
-    async def gs(ctx, *, arg, skip_cache=False):
-        '''Searches the phrase given on google'''
+    exec(dyn_quick_functions_code)
 
-        # sanitization
-        searchTerm = list(arg)
-        for i in searchTerm:
-            if not i.isalnum and i not in "'+.:":
-                searchTerm.remove(i)
-        searchTerm = ''.join(searchTerm)
+    class Searching_Commands(commands.Cog, name="Search"):
+        '''Commands which search on the web'''
 
-        cur = db_conn.conn.cursor()
+        @commands.command()
+        async def gs(self, ctx, *, arg, skip_cache=False):
+            '''Searches the phrase given on google'''
 
-        if not skip_cache:
-            for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
-                url = row[1]
-                if url:
-                    embed = discord.Embed()
-                    embed.set_image(url=url)
-                    await ctx.send(embed=embed)
-                else:
-                    await ctx.send('Couldn\'t find the searched image.')
-                return
+            # sanitization
+            searchTerm = list(arg)
+            for i in searchTerm:
+                if not i.isalnum and i not in "'+.:":
+                    searchTerm.remove(i)
+            searchTerm = ''.join(searchTerm)
 
-        async with ctx.typing():
-            gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
+            cur = db_conn.conn.cursor()
 
-            _search_params = {
-                'q': searchTerm,
-                'num': 10,
-                'safe': 'high',
-            }
+            if not skip_cache:
+                for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
+                    url = row[1]
+                    if url:
+                        embed = discord.Embed()
+                        embed.set_image(url=url)
+                        await ctx.send(embed=embed)
+                    else:
+                        await ctx.send('Couldn\'t find the searched image.')
+                    return
 
-        gis.search(search_params=_search_params)
-        for image in gis.results():
-            url = image.url
+            async with ctx.typing():
+                gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
 
-            try:
-                cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, url))
+                _search_params = {
+                    'q': searchTerm,
+                    'num': 10,
+                    'safe': 'high',
+                }
+
+            gis.search(search_params=_search_params)
+            for image in gis.results():
+                url = image.url
+
+                try:
+                    cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, url))
+                    db_conn.conn.commit()
+                except sqlite3.IntegrityError:
+                    cur.execute('UPDATE links SET href="%s" where term="%s"' % (url, searchTerm))
+
+                embed = discord.Embed()
+                embed.set_image(url=url)
+                await ctx.send(embed=embed)
+                break
+            else:
+                cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, ""))
                 db_conn.conn.commit()
-            except sqlite3.IntegrityError:
-                cur.execute('UPDATE links SET href="%s" where term="%s"' % (url, searchTerm))
 
-            embed = discord.Embed()
-            embed.set_image(url=url)
-            await ctx.send(embed=embed)
-            break
-        else:
-            cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, ""))
-            db_conn.conn.commit()
+                await ctx.send('Couldn\'t find the searched image.')
 
-            await ctx.send('Couldn\'t find the searched image.')
+        @commands.command()
+        async def gsd(self, ctx, *, arg):
+            '''Same as gs but deletes the original message'''
+            await gs(ctx, arg=arg)
+            await ctx.message.delete()
 
-    @bot.command()
-    async def gsd(ctx, *, arg):
-        '''Same as gs but deletes the original message'''
-        await gs(ctx, arg=arg)
-        await ctx.message.delete()
+        @commands.command()
+        async def gsu(self, ctx, *, arg):
+            '''Same as gs but skips any cache check'''
+            await gs(ctx, arg=arg, skip_cache=True)
 
-    @bot.command()
-    async def gsu(ctx, *, arg):
-        '''Same as gs but skips any cache check'''
-        await gs(ctx, arg=arg, skip_cache=True)
+        @commands.command()
+        async def gsud(self, ctx, *, arg):
+            '''Same as gsu but deletes the original message'''
+            await gs(ctx, arg=arg, skip_cache=True)
+            await ctx.message.delete()
 
-    @bot.command()
-    async def gsud(ctx, *, arg):
-        '''Same as gsu but deletes the original message'''
-        await gs(ctx, arg=arg, skip_cache=True)
-        await ctx.message.delete()
+    class Bot_Commands(commands.Cog, name="Normal"):
+        '''Normal Bot commands'''
 
-    @bot.command()
-    async def ping(ctx):
-        '''Gets the latency of the bot'''
-        latency = round(bot.latency * 1000)  # Included in the Discord.py library
-        await ctx.send(str(latency) + 'ms')
+        @commands.command()
+        async def ping(self, ctx):
+            '''Gets the latency of the bot'''
+            latency = round(bot.latency * 1000)  # Included in the Discord.py library
+            await ctx.send(str(latency) + 'ms')
 
-    @bot.command()
-    async def lol(ctx):
-        '''writes a very witty joke'''
-        await ctx.send('fuck you!')
+        @commands.command()
+        async def lol(self, ctx):
+            '''writes a very witty joke'''
+            await ctx.send('fuck you!')
 
-    @bot.command()
-    async def version(ctx):
-        '''shows the version'''
-        await ctx.send('Better than your mom!')
+        @commands.command()
+        async def version(self, ctx):
+            '''shows the version'''
+            await ctx.send('Better than your mom!')
+
+    bot.add_cog(Quick_Reactions(bot))
+    bot.add_cog(Searching_Commands(bot))
+    bot.add_cog(Bot_Commands(bot))
 
     if __name__ == '__main__':
         bot.run(secret_token)
