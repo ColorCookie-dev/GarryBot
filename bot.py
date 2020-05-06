@@ -46,7 +46,7 @@ async def ' + i + '(ctx):\n\
     await ctx.send(embed=embed)')
 
     @bot.command()
-    async def gs(ctx, *, arg):
+    async def gs(ctx, *, arg, skip_cache=False):
         '''Searches the phrase given on google'''
 
         # sanitization
@@ -57,15 +57,17 @@ async def ' + i + '(ctx):\n\
         searchTerm = ''.join(searchTerm)
 
         cur = db_conn.conn.cursor()
-        for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
-            url = row[1]
-            if url:
-                embed = discord.Embed()
-                embed.set_image(url=url)
-                await ctx.send(embed=embed)
-            else:
-                await ctx.send('Couldn\'t find the searched image.')
-            return
+
+        if not skip_cache:
+            for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
+                url = row[1]
+                if url:
+                    embed = discord.Embed()
+                    embed.set_image(url=url)
+                    await ctx.send(embed=embed)
+                else:
+                    await ctx.send('Couldn\'t find the searched image.')
+                return
 
         async with ctx.typing():
             gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
@@ -80,8 +82,11 @@ async def ' + i + '(ctx):\n\
         for image in gis.results():
             url = image.url
 
-            cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, url))
-            db_conn.conn.commit()
+            try:
+                cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, url))
+                db_conn.conn.commit()
+            except sqlite3.IntegrityError:
+                cur.execute('UPDATE links SET href="%s" where term="%s"' % (url, searchTerm))
 
             embed = discord.Embed()
             embed.set_image(url=url)
@@ -97,6 +102,17 @@ async def ' + i + '(ctx):\n\
     async def gsd(ctx, *, arg):
         '''Same as gs but deletes the original message'''
         await gs(ctx, arg=arg)
+        await ctx.message.delete()
+
+    @bot.command()
+    async def gsu(ctx, *, arg):
+        '''Same as gs but skips any cache check'''
+        await gs(ctx, arg=arg, skip_cache=True)
+
+    @bot.command()
+    async def gsud(ctx, *, arg):
+        '''Same as gsu but deletes the original message'''
+        await gs(ctx, arg=arg, skip_cache=True)
         await ctx.message.delete()
 
     @bot.command()
