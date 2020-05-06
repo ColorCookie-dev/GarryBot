@@ -114,18 +114,18 @@ class Quick_Reactions(commands.Cog, name='Quick'):\n\
         @commands.command()
         async def gsd(self, ctx, *, arg):
             '''Same as gs but deletes the original message'''
-            await gs(ctx, arg=arg)
+            await self.gs(ctx, arg=arg)
             await ctx.message.delete()
 
         @commands.command()
         async def gsu(self, ctx, *, arg):
             '''Same as gs but skips any cache check'''
-            await gs(ctx, arg=arg, skip_cache=True)
+            await self.gs(ctx, arg=arg, skip_cache=True)
 
         @commands.command()
         async def gsud(self, ctx, *, arg):
             '''Same as gsu but deletes the original message'''
-            await gs(ctx, arg=arg, skip_cache=True)
+            await self.gs(ctx, arg=arg, skip_cache=True)
             await ctx.message.delete()
 
     class Bot_Commands(commands.Cog, name="Normal"):
