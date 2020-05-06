@@ -43,18 +43,17 @@ async def ' + i + '(ctx):\n\
     await ctx.send(embed=embed)')
 
     @bot.command()
-    async def gs(ctx, *arg):
+    async def gs(ctx, *, arg):
         '''Searches the phrase given on google'''
 
         async with ctx.typing():
 
             # sanitization
-            searchTerm = list('+'.join(arg))
+            searchTerm = list(arg)
             for i in searchTerm:
                 if not i.isalnum and i not in "'+.:":
                     searchTerm.remove(i)
             searchTerm = ''.join(searchTerm)
-
 
             cur = db_conn.conn.cursor()
             for row in cur.execute('SELECT * FROM links WHERE term="%s"' % (searchTerm,)):
@@ -86,9 +85,9 @@ async def ' + i + '(ctx):\n\
             await ctx.send('Couldn\'t find the searched image.')
 
     @bot.command()
-    async def gsd(ctx, *args):
+    async def gsd(ctx, *, arg):
         '''Same as gs but deletes the original message'''
-        await gs(ctx, *args)
+        await gs(ctx, arg=arg)
         await ctx.message.delete()
 
     @bot.command()
