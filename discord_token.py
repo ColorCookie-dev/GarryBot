@@ -1,3 +1,5 @@
-secret_token = 'discord bot token'
-secret_api_key = 'google_dev_api_key'
-secret_cx_code = 'google custom search cx_code'
+import os
+
+secret_token = os.environ.get['DISCORD_TOEKN']
+secret_api_key = os.environ.get['DEV_API_KEY', '']
+secret_cx_code = os.environ.get['CX_CODE', '']
