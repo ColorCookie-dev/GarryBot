@@ -6,48 +6,27 @@ from discord_token import secret_token, secret_api_key, secret_cx_code
 from google_images_search import GoogleImagesSearch
 
 
-class DBConnect:
-    def __init__(self, db=':memory:'):
-        self.conn = sqlite3.connect(db)
-        c = self.conn.cursor()
-        # Create table
-        try:
-            c.execute('''CREATE TABLE links
-                         (id int primary key autoincrement, term text not null, ind int, href text)''')
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            print('Using existing cache of memes')
+bot = commands.Bot(command_prefix='~')
 
-    def __enter__(self):
-        pass
+quick_react_dict = {
+    'notaccident': ('https://i.kym-cdn.com/entries/icons/facebook/000/023/853/accidents.jpg', 'There are no accidents'),
+    'bigbrain': ('https://vignette.wikia.nocookie.net/furthestextreme/images/f/f6/Cropped-big-brain.jpg/revision/latest/scale-to-width-down/340?cb=20190929085659', 'Big brains'),
+    'bigbrain2': ('https://i.kym-cdn.com/entries/icons/original/000/030/525/cover5.png', 'Markiplier version of big brain'),
+    'coffindance': ('https://media0.giphy.com/media/j6ZlX8ghxNFRknObVk/giphy.gif?cid=ecf05e471a1b565aa6951015ad6c9ec2eb2de8a9bed0465d&rid=giphy.gif', 'coffin dance'),
+}
 
-    def __exit__(self, type, value, tb):
-        self.conn.close()
+# Just for the intellisense
+class Quick_Reactions(commands.Cog):
+    pass
 
-db_conn = DBConnect('meme_cache.db')
-with db_conn:
-
-    bot = commands.Bot(command_prefix='~')
-
-    quick_react_dict = {
-        'notaccident': ('https://i.kym-cdn.com/entries/icons/facebook/000/023/853/accidents.jpg', 'There are no accidents'),
-        'bigbrain': ('https://vignette.wikia.nocookie.net/furthestextreme/images/f/f6/Cropped-big-brain.jpg/revision/latest/scale-to-width-down/340?cb=20190929085659', 'Big brains'),
-        'bigbrain2': ('https://i.kym-cdn.com/entries/icons/original/000/030/525/cover5.png', 'Markiplier version of big brain'),
-        'coffindance': ('https://media0.giphy.com/media/j6ZlX8ghxNFRknObVk/giphy.gif?cid=ecf05e471a1b565aa6951015ad6c9ec2eb2de8a9bed0465d&rid=giphy.gif', 'coffin dance'),
-    }
-
-    # Just for the intellisense
-    class Quick_Reactions(commands.Cog):
-        pass
-
-    dyn_quick_functions_code = "\
+dyn_quick_functions_code = "\
 class Quick_Reactions(commands.Cog, name='Quick'):\n\
     '''For Quick Reactions to memes'''\n"
 
-    for i in quick_react_dict:
-        url, meme = quick_react_dict[i]
+for i in quick_react_dict:
+    url, meme = quick_react_dict[i]
 
-        dyn_quick_functions_code += f"\
+    dyn_quick_functions_code += f"\
     @commands.command()\n\
     async def {i}(self, ctx):\n\
         '''embeds {meme} meme'''\n\
@@ -55,109 +34,84 @@ class Quick_Reactions(commands.Cog, name='Quick'):\n\
         embed.set_image(url='{url}')\n\
         await ctx.send(embed=embed)\n"
 
-    exec(dyn_quick_functions_code)
+exec(dyn_quick_functions_code)
 
-    class Searching_Commands(commands.Cog, name="Search"):
-        '''Commands which search on the web'''
+class Searching_Commands(commands.Cog, name="Search"):
+    '''Commands which search on the web'''
 
-        @commands.command()
-        async def gs(self, ctx, ind: typing.Optional[int] = 1, *, arg, skip_cache=False):
-            '''Searches the phrase given on google'''
-            ind -= 1
-            if not ind >= 0:
-                await ctx.send('Index not in bound')
-                return
+    @commands.command()
+    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, arg, skip_cache=False):
+        '''Searches the phrase given on google'''
+        ind -= 1
+        if not ind >= 0:
+            await ctx.send('Index not in bound')
+            return
 
-            # sanitization
-            searchTerm = list(arg)
-            for i in searchTerm:
-                if not i.isalnum and i not in "'+.:":
-                    searchTerm.remove(i)
-            searchTerm = ''.join(searchTerm)
+        # sanitization
+        searchTerm = ''
+        for i in arg:
+            if i.isalnum or i in "'+.:":
+                searchTerm += i
 
-            cur = db_conn.conn.cursor()
+        async with ctx.typing():
+            gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
 
-            if not skip_cache:
-                for row in cur.execute('SELECT href FROM links WHERE term="%s" and ind="%d"' % (searchTerm, ind)):
-                    url = row[0]
-                    if url:
-                        embed = discord.Embed()
-                        embed.set_image(url=url)
-                        await ctx.send(embed=embed)
-                    else:
-                        await ctx.send('Couldn\'t find the searched image.')
-                    return
+            _search_params = {
+                'q': searchTerm,
+                'num': 10,
+                'safe': 'high',
+            }
 
-            async with ctx.typing():
-                gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
+        gis.search(search_params=_search_params)
+        for counter, image in enumerate(gis.results()):
+            if counter == ind:
+                embed = discord.Embed()
+                embed.set_image(url=image.url)
+                await ctx.send(embed=embed)
+                break
+        else:
+            await ctx.send('Couldn\'t find the searched image.')
 
-                _search_params = {
-                    'q': searchTerm,
-                    'num': 10,
-                    'safe': 'high',
-                }
+    @commands.command()
+    async def gsd(self, ctx, ind: typing.Optional[int] = 1, *, arg):
+        '''Same as gs but deletes the original message'''
+        await self.gs(ctx, ind=ind, arg=arg)
+        await ctx.message.delete()
 
-            gis.search(search_params=_search_params)
-            for counter, image in enumerate(gis.results()):
-                if counter == ind:
-                    url = image.url
+    @commands.command()
+    async def gsu(self, ctx, ind: typing.Optional[int] = 1, *, arg):
+        '''Same as gs but skips any cache check'''
+        await self.gs(ctx, ind=ind, arg=arg, skip_cache=True)
 
-                    try:
-                        cur.execute('INSERT INTO links (term, ind, href) VALUES ("%s", "%d", "%s")' % (searchTerm, ind, url))
-                        db_conn.conn.commit()
-                    except sqlite3.IntegrityError:
-                        cur.execute('UPDATE links SET href="%s" where term="%s"' % (url, ind, searchTerm))
+    @commands.command()
+    async def gsud(self, ctx, ind: typing.Optional[int] = 1, *, arg):
+        '''Same as gsu but deletes the original message'''
+        await self.gs(ctx, ind=ind, arg=arg, skip_cache=True)
+        await ctx.message.delete()
 
-                    embed = discord.Embed()
-                    embed.set_image(url=url)
-                    await ctx.send(embed=embed)
-                    break
-            else:
-                cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, ""))
-                db_conn.conn.commit()
+class Bot_Commands(commands.Cog, name="Normal"):
+    '''Normal Bot commands'''
 
-                await ctx.send('Couldn\'t find the searched image.')
+    @commands.command()
+    async def ping(self, ctx):
+        '''Gets the latency of the bot'''
+        latency = round(bot.latency * 1000)  # Included in the Discord.py library
+        await ctx.send(str(latency) + 'ms')
 
-        @commands.command()
-        async def gsd(self, ctx, ind: typing.Optional[int] = 1, *, arg):
-            '''Same as gs but deletes the original message'''
-            await self.gs(ctx, ind=ind, arg=arg)
-            await ctx.message.delete()
+    @commands.command()
+    async def lol(self, ctx):
+        '''writes a very witty joke'''
+        await ctx.send('fuck you!')
 
-        @commands.command()
-        async def gsu(self, ctx, ind: typing.Optional[int] = 1, *, arg):
-            '''Same as gs but skips any cache check'''
-            await self.gs(ctx, ind=ind, arg=arg, skip_cache=True)
+    @commands.command()
+    async def version(self, ctx):
+        '''shows the version'''
+        await ctx.send('Better than your mom!')
 
-        @commands.command()
-        async def gsud(self, ctx, ind: typing.Optional[int] = 1, *, arg):
-            '''Same as gsu but deletes the original message'''
-            await self.gs(ctx, ind=ind, arg=arg, skip_cache=True)
-            await ctx.message.delete()
+bot.add_cog(Quick_Reactions(bot))
+bot.add_cog(Searching_Commands(bot))
+bot.add_cog(Bot_Commands(bot))
 
-    class Bot_Commands(commands.Cog, name="Normal"):
-        '''Normal Bot commands'''
-
-        @commands.command()
-        async def ping(self, ctx):
-            '''Gets the latency of the bot'''
-            latency = round(bot.latency * 1000)  # Included in the Discord.py library
-            await ctx.send(str(latency) + 'ms')
-
-        @commands.command()
-        async def lol(self, ctx):
-            '''writes a very witty joke'''
-            await ctx.send('fuck you!')
-
-        @commands.command()
-        async def version(self, ctx):
-            '''shows the version'''
-            await ctx.send('Better than your mom!')
-
-    bot.add_cog(Quick_Reactions(bot))
-    bot.add_cog(Searching_Commands(bot))
-    bot.add_cog(Bot_Commands(bot))
-
-    if __name__ == '__main__':
-        bot.run(secret_token)
+if __name__ == '__main__':
+    bot.run(secret_token)
 
