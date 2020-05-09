@@ -1,4 +1,3 @@
-import sqlite3
 import discord
 import typing
 from discord.ext import commands
