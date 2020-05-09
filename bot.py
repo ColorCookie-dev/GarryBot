@@ -69,10 +69,10 @@ class Quick_Reactions(commands.Cog, name='Quick'):\n\
                 return
 
             # sanitization
-            searchTerm = list(arg)
-            for i in searchTerm:
-                if not i.isalnum and i not in "'+.:":
-                    searchTerm.remove(i)
+            searchTerm = ''
+            for i in arg:
+                if i.isalnum or i in "'+.:":
+                    searchTerm += i
             searchTerm = ''.join(searchTerm)
 
             cur = db_conn.conn.cursor()
