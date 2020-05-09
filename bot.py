@@ -41,7 +41,7 @@ class Searching_Commands(commands.Cog, name="Search"):
     '''Commands which search on the web'''
 
     @commands.command()
-    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, arg, skip_cache=False):
+    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, searchTerm, skip_cache=False):
         '''Searches the phrase given on google'''
 
         global meme_cache
@@ -50,12 +50,6 @@ class Searching_Commands(commands.Cog, name="Search"):
         if not ind >= 0:
             await ctx.send('Index not in bound')
             return
-
-        # sanitization
-        searchTerm = ''
-        for i in arg:
-            if i.isalnum or i in "'+.:":
-                searchTerm += i
 
         if not skip_cache:
             if searchTerm in meme_cache:
