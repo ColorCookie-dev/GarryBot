@@ -5,8 +5,6 @@ from discord_token import secret_token, secret_api_key, secret_cx_code
 from google_images_search import GoogleImagesSearch
 
 
-meme_cache = {}
-
 bot = commands.Bot(command_prefix='~')
 
 quick_react_dict = {
@@ -41,74 +39,36 @@ class Searching_Commands(commands.Cog, name="Search"):
     '''Commands which search on the web'''
 
     @commands.command()
-    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, arg, skip_cache=False):
+    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, searchTerm):
         '''Searches the phrase given on google'''
-
-        global meme_cache
-        searchTerm = arg
 
         ind -= 1
         if not ind >= 0:
             await ctx.send('Index not in bound')
             return
 
-        if not skip_cache:
-            if searchTerm in meme_cache:
-                try:
-                    url = meme_cache[searchTerm][ind]
-                    if url:
-                        embed = discord.Embed()
-                        embed.set_image(url=url)
-                        await ctx.send(embed=embed)
-                    else:
-                        await ctx.send('Couldn\'t find the searched image.')
-                    return
-                except KeyError:
-                    pass
+        gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
 
-        async with ctx.typing():
-            gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
-
-            _search_params = {
-                'q': searchTerm,
-                'num': 10,
-                'safe': 'high',
-            }
+        _search_params = {
+            'q': searchTerm,
+            'num': 10,
+            'safe': 'high',
+        }
 
         gis.search(search_params=_search_params)
         for counter, image in enumerate(gis.results()):
             if counter == ind:
-                if searchTerm in meme_cache:
-                    meme_cache[searchTerm][ind] = image.url
-                else:
-                    meme_cache[searchTerm] = { ind: image.url }
-
                 embed = discord.Embed()
                 embed.set_image(url=image.url)
                 await ctx.send(embed=embed)
                 break
         else:
-            if searchTerm in meme_cache:
-                meme_cache[searchTerm][ind] = ''
-            else:
-                meme_cache[searchTerm] = { ind: '' }
             await ctx.send('Couldn\'t find the searched image.')
 
     @commands.command()
     async def gsd(self, ctx, ind: typing.Optional[int] = 1, *, arg):
         '''Same as gs but deletes the original message'''
-        await self.gs(ctx, ind=ind, arg=arg)
-        await ctx.message.delete()
-
-    @commands.command()
-    async def gsu(self, ctx, ind: typing.Optional[int] = 1, *, arg):
-        '''Same as gs but skips any cache check'''
-        await self.gs(ctx, ind=ind, arg=arg, skip_cache=True)
-
-    @commands.command()
-    async def gsud(self, ctx, ind: typing.Optional[int] = 1, *, arg):
-        '''Same as gsu but deletes the original message'''
-        await self.gs(ctx, ind=ind, arg=arg, skip_cache=True)
+        await self.gs(ctx, ind=ind, searchTerm=arg)
         await ctx.message.delete()
 
 class Bot_Commands(commands.Cog, name="Normal"):
