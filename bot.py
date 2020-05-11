@@ -63,8 +63,7 @@ class Quick_Reactions(commands.Cog, name='Quick'):\n\
         @commands.command()
         async def gs(self, ctx, ind: typing.Optional[int] = 1, *, arg, skip_cache=False):
             '''Searches the phrase given on google'''
-            ind -= 1
-            if not ind >= 0:
+            if not (ind >= 0 and ind <= 200):
                 await ctx.send('Index not in bound')
                 return
 
@@ -93,27 +92,26 @@ class Quick_Reactions(commands.Cog, name='Quick'):\n\
 
                 _search_params = {
                     'q': searchTerm,
-                    'num': 10,
+                    'start': ind,
+                    'num': 1,
                     'safe': 'high',
                 }
 
             gis.search(search_params=_search_params)
-            for counter, image in enumerate(gis.results()):
-                if counter == ind:
-                    url = image.url
+            results = gis.results()
+            url = results[0].url if len(results) >= 1 else None
+            if url:
+                try:
+                    cur.execute('INSERT INTO links (term, ind, href) VALUES ("%s", "%d", "%s")' % (searchTerm, ind, url))
+                    db_conn.conn.commit()
+                except sqlite3.IntegrityError:
+                    cur.execute('UPDATE links SET href="%s" where term="%s"' % (url, ind, searchTerm))
 
-                    try:
-                        cur.execute('INSERT INTO links (term, ind, href) VALUES ("%s", "%d", "%s")' % (searchTerm, ind, url))
-                        db_conn.conn.commit()
-                    except sqlite3.IntegrityError:
-                        cur.execute('UPDATE links SET href="%s" where term="%s"' % (url, ind, searchTerm))
-
-                    embed = discord.Embed()
-                    embed.set_image(url=url)
-                    await ctx.send(embed=embed)
-                    break
+                embed = discord.Embed()
+                embed.set_image(url=url)
+                await ctx.send(embed=embed)
             else:
-                cur.execute('INSERT INTO links VALUES ("%s", "%s")' % (searchTerm, ""))
+                cur.execute('INSERT INTO links (term, ind, href) VALUES ("%s", "%d", "%s")' % (searchTerm, ind, ""))
                 db_conn.conn.commit()
 
                 await ctx.send('Couldn\'t find the searched image.')
