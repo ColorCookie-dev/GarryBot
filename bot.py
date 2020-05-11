@@ -42,8 +42,7 @@ class Searching_Commands(commands.Cog, name="Search"):
     async def gs(self, ctx, ind: typing.Optional[int] = 1, *, searchTerm):
         '''Searches the phrase given on google'''
 
-        ind -= 1
-        if not ind >= 0:
+        if not ind >= 1:
             await ctx.send('Index not in bound')
             return
 
@@ -51,7 +50,7 @@ class Searching_Commands(commands.Cog, name="Search"):
 
         _search_params = {
             'q': searchTerm,
-            'num': ind+1,
+            'start': ind,
             'safe': 'high',
         }
 
