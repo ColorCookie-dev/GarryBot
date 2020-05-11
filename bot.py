@@ -56,7 +56,7 @@ class Searching_Commands(commands.Cog, name="Search"):
 
         gis.search(search_params=_search_params)
         results = gis.results()
-        url = results[ind].url if len(results) >= ind else None
+        url = results[0] if len(results) >= 1 else None
         if url:
             embed = discord.Embed()
             embed.set_image(url=url)
