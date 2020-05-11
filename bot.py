@@ -51,17 +51,16 @@ class Searching_Commands(commands.Cog, name="Search"):
 
         _search_params = {
             'q': searchTerm,
-            'num': 10,
+            'num': ind+1,
             'safe': 'high',
         }
 
         gis.search(search_params=_search_params)
-        for counter, image in enumerate(gis.results()):
-            if counter == ind:
-                embed = discord.Embed()
-                embed.set_image(url=image.url)
-                await ctx.send(embed=embed)
-                break
+        url = gis.results().get(ind, None)
+        if url:
+            embed = discord.Embed()
+            embed.set_image(url=url)
+            await ctx.send(embed=embed)
         else:
             await ctx.send('Couldn\'t find the searched image.')
 
