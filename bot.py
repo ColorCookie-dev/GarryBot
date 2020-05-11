@@ -41,10 +41,11 @@ class Searching_Commands(commands.Cog, name="Search"):
     '''Commands which search on the web'''
 
     @commands.command()
-    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, searchTerm, skip_cache=False):
+    async def gs(self, ctx, ind: typing.Optional[int] = 1, *, arg, skip_cache=False):
         '''Searches the phrase given on google'''
 
         global meme_cache
+        searchTerm = arg
 
         ind -= 1
         if not ind >= 0:
