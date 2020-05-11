@@ -42,21 +42,22 @@ class Searching_Commands(commands.Cog, name="Search"):
     async def gs(self, ctx, ind: typing.Optional[int] = 1, *, searchTerm):
         '''Searches the phrase given on google'''
 
-        if not ind >= 1:
-            await ctx.send('Index not in bound')
-            return
+        async with ctx.typing():
+            if not (ind >= 1 and ind <= 200):
+                await ctx.send('Index not in bound')
+                return
 
-        gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
+            gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
 
-        _search_params = {
-            'q': searchTerm,
-            'start': ind,
-            'safe': 'high',
-        }
+            _search_params = {
+                'q': searchTerm,
+                'start': ind,
+                'safe': 'high',
+            }
 
-        gis.search(search_params=_search_params)
-        results = gis.results()
-        url = results[0] if len(results) >= 1 else None
+            gis.search(search_params=_search_params)
+            results = gis.results()
+            url = results[0].url if len(results) >= 1 else None
         if url:
             embed = discord.Embed()
             embed.set_image(url=url)
