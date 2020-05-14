@@ -9,6 +9,10 @@ from google_images_search import GoogleImagesSearch
 
 bot = commands.Bot(command_prefix='~')
 
+@bot.event
+async def on_ready():
+    await bot.change_presence(status=discord.Status.online, activity=discord.Game("with my life"))
+
 async def get_web_hook(channel: discord.TextChannel):
     webhooks = await channel.webhooks()
     if len(webhooks):
