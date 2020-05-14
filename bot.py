@@ -4,7 +4,6 @@ import discord
 import typing
 from discord.ext import commands
 from discord_token import secret_token, secret_api_key, secret_cx_code
-from database import DBConnection
 from google_images_search import GoogleImagesSearch
 
 
@@ -25,8 +24,7 @@ class Searching_Commands(commands.Cog, name="Search"):
             ctx,
             start: typing.Optional[int] = 1,
             num: typing.Optional[int] = 1,
-            *, arg,
-            skip_cache=False,
+            *, searchTerm,
             delete=False):
         '''Searches the phrase given on google'''
 
@@ -34,13 +32,6 @@ class Searching_Commands(commands.Cog, name="Search"):
                 and num >= 1 and num <= 10):
             await ctx.send('Numbers not in bound')
             return
-
-        # sanitization
-        searchTerm = ''
-        for i in arg:
-            if i.isalnum or i in "'+.:":
-                searchTerm += i
-        searchTerm = ''.join(searchTerm)
 
         gis = GoogleImagesSearch(secret_api_key, secret_cx_code)
 
@@ -53,47 +44,17 @@ class Searching_Commands(commands.Cog, name="Search"):
 
         webhook = await get_web_hook(ctx.channel)
 
-        with DBConnection('meme_cache.db') as db_conn:
-            cur = db_conn.conn.cursor()
-
-            if (not skip_cache) or (num != 1):
-                for row in cur.execute(db_conn.select_query % (searchTerm, start)):
-                    url = row[0]
-                    if url:
-                        embed = discord.Embed()
-                        embed.set_image(url=url)
-                        if not delete:
-                            await webhook.send(content=ctx.message.content,
-                                    embed=embed,
-                                    username=ctx.message.author.nick,
-                                    avatar_url=ctx.message.author.avatar_url)
-                        else:
-                            await webhook.send(
-                                    embed=embed,
-                                    username=ctx.message.author.nick,
-                                    avatar_url=ctx.message.author.avatar_url)
-                        await ctx.message.delete()
-                    else:
-                        await ctx.send('Couldn\'t find the searched image.')
-                    return
-
-            gis.search(search_params=_search_params)
-            embeds = []
-            for i, img in enumerate(gis.results()):
-                if img.url:
-                    embed_data = {
-                        'type': 'image',
-                        'image': {
-                            'url': img.url,
-                        },
-                    }
-                    embeds.append(discord.Embed.from_dict(embed_data))
-
-                try:
-                    cur.execute(db_conn.insert_query % (searchTerm, start+i, img.url))
-                    db_conn.conn.commit()
-                except sqlite3.IntegrityError:
-                    cur.execute(db_conn.update_query % (img.url, start+i, searchTerm))
+        gis.search(search_params=_search_params)
+        embeds = []
+        for i, img in enumerate(gis.results()):
+            if img.url:
+                embed_data = {
+                    'type': 'image',
+                    'image': {
+                        'url': img.url,
+                    },
+                }
+                embeds.append(discord.Embed.from_dict(embed_data))
 
         if not delete:
             cont = ctx.message.content
@@ -113,27 +74,9 @@ class Searching_Commands(commands.Cog, name="Search"):
             ctx,
             start: typing.Optional[int] = 1,
             num: typing.Optional[int] = 1,
-            *, arg):
+            *, searchTerm):
         '''Same as gs but deletes the original message'''
-        await self.gs(ctx, start=start, num=num, arg=arg, delete=True)
-
-    @commands.command()
-    async def gsu(self,
-            ctx,
-            start: typing.Optional[int] = 1,
-            num: typing.Optional[int] = 1,
-            *, arg):
-        '''Same as gs but skips any cache check'''
-        await self.gs(ctx, start=start, num=num, arg=arg, skip_cache=True)
-
-    @commands.command()
-    async def gsud(self,
-            ctx,
-            start: typing.Optional[int] = 1,
-            num: typing.Optional[int] = 1,
-            *, arg):
-        '''Same as gsu but deletes the original message'''
-        await self.gs(ctx, start=start, num=num, arg=arg, skip_cache=True, delete=True)
+        await self.gs(ctx, start=start, num=num, searchTerm=searchTerm, delete=True)
 
 class Bot_Commands(commands.Cog, name="Normal"):
     '''Normal Bot commands'''
@@ -189,7 +132,7 @@ class ManagementCmds(commands.Cog, name='Management'):
     @commands.has_permissions(manage_messages=True)
     @commands.command(name='del')
     async def _del(self, ctx,
-            till: typing.Union[int, discord.Message, datetime.datetime] = int(1),
+            till: typing.Union[int, discord.Message] = int(1),
             option: typing.Optional[ChatPattern] = ChatPattern('after')):
         '''deletes message relative to the latest msg'''
         await ctx.message.delete()
