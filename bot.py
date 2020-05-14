@@ -53,7 +53,7 @@ class Searching_Commands(commands.Cog, name="Search"):
 
         webhook = await get_web_hook(ctx.channel)
 
-		with DBConnection('meme_cache.db') as db_conn:
+        with DBConnection('meme_cache.db') as db_conn:
             cur = db_conn.conn.cursor()
 
             if (not skip_cache) or (num != 1):
@@ -77,28 +77,23 @@ class Searching_Commands(commands.Cog, name="Search"):
                         await ctx.send('Couldn\'t find the searched image.')
                     return
 
-
             gis.search(search_params=_search_params)
-		    embeds = []
-		    for i, img in enumerate(gis.results()):
-		        if img.url:
-		            embed_data = {
-		                'type': 'image',
-		                'image': {
-		                    'url': img.url,
-		                },
-		            }
-		            embeds.append(discord.Embed.from_dict(embed_data))
+            embeds = []
+            for i, img in enumerate(gis.results()):
+                if img.url:
+                    embed_data = {
+                        'type': 'image',
+                        'image': {
+                            'url': img.url,
+                        },
+                    }
+                    embeds.append(discord.Embed.from_dict(embed_data))
 
-                    try:
-                        cur.execute(db_conn.insert_query % (searchTerm, start+i, img.url))
-                        db_conn.conn.commit()
-                    except sqlite3.IntegrityError:
-                        cur.execute(db_conn.update_query % (img.url, start+i, searchTerm))
-                else:
-                    await ctx.send('Couldn\'t find the searched image.')
-                    cur.execute(db_conn.insert_query % (searchTerm, start+i, ""))
+                try:
+                    cur.execute(db_conn.insert_query % (searchTerm, start+i, img.url))
                     db_conn.conn.commit()
+                except sqlite3.IntegrityError:
+                    cur.execute(db_conn.update_query % (img.url, start+i, searchTerm))
 
         if not delete:
             cont = ctx.message.content
@@ -159,18 +154,21 @@ class Bot_Commands(commands.Cog, name="Normal"):
         '''shows the version'''
         await ctx.send('Better than your mom!')
 
-        @commands.command()
-        async def secret(self, ctx, sec: typing.Optional[float] = 10.0, *, content: str = ""):
-            '''deletes the secret after some time'''
-            webhook = await get_web_hook(ctx.channel)
-            secr_msg = await webhook.send(content=f"The secret message will be deleted in {sec} seconds",
-                    wait=True,
-                    username=ctx.message.author.display_name,
-                    avatar_url=ctx.message.author.avatar_url,
-                    embeds=ctx.message.embeds)
-            await asyncio.sleep(sec)
-            await secr_msg.delete()
-            await ctx.message.delete()
+    @commands.command()
+    async def secret(self, ctx, sec: typing.Optional[float] = 10.0, *, content: str = ""):
+        '''deletes the secret after some time'''
+        if sec < 1 or sec > 60:
+            await ctx.send('Time is out of bound [1, 60]')
+            return
+        webhook = await get_web_hook(ctx.channel)
+        secr_msg = await webhook.send(content=f"The secret message will be deleted in {sec} seconds",
+                wait=True,
+                username=ctx.message.author.display_name,
+                avatar_url=ctx.message.author.avatar_url,
+                embeds=ctx.message.embeds)
+        await asyncio.sleep(sec)
+        await secr_msg.delete()
+        await ctx.message.delete()
 
     @commands.command()
     async def say(self, ctx, *, content):
