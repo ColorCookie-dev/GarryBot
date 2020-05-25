@@ -186,6 +186,16 @@ class ChatPattern:
 class ManagementCmds(commands.Cog, name='Management'):
     '''Server and chat management commands'''
 
+    @commands.command()
+    async def top(self, ctx):
+        '''Serves a link to the top most message in a channel'''
+        top_msg = await ctx.channel.history(oldest_first=True, limit=1).flatten()
+        for msg in top_msg:
+            await ctx.send("Top-most message is: %s" % msg.jump_url)
+            break
+        else:
+            await ctx.send("Error finding the top most message of this channel")
+
     @commands.has_permissions(manage_messages=True)
     @commands.command(name='del')
     async def _del(self, ctx,
