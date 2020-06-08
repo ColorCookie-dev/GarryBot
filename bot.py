@@ -1,4 +1,5 @@
 import asyncio
+import requests
 import datetime
 import discord
 import typing
@@ -291,9 +292,45 @@ class ManagementCmds(commands.Cog, name='Management'):
                     username=ctx.message.author.display_name,
                     avatar_url=ctx.message.author.avatar_url)
 
+async def format_json(data, indent=0):
+    if isinstance(data, str):
+        return '\t\t' * indent + data
+    res = ""
+    for field in data:
+        if isinstance(data[field], dict):
+            res += '\t\t' * indent + "**%s:**\n" % (field)
+            res += await format_json(data[field], indent + 1)
+        elif isinstance(data[field], list):
+            res += '\t\t' * indent + "**%s:**\n" % (field)
+            for i in data[field]:
+                res += await format_json(i, indent + 1)
+                res += '\n'
+        else:
+            res += '\t\t' * indent + "**%s:** %s\n" % (field, data[field])
+    return res
+
+class CodeWarsStats(commands.Cog, name="CodeWars Stats"):
+
+    @commands.command()
+    async def codestats(self, ctx, user: str):
+        ''' Obtains data about some user from codewars '''
+        data = requests.get("https://www.codewars.com/api/v1/users/" + user).json()
+        response = await format_json(data)
+        response += "_**site:** codewars.com_"
+        await ctx.send(response)
+
+    @commands.command()
+    async def codeapi(self, ctx, path: str):
+        ''' Obtains data about anything from codewars '''
+        data = requests.get("https://www.codewars.com/api/v1/" + path).json()
+        response = await format_json(data)
+        response += "_**site:** codewars.com_"
+        await ctx.send(response)
+
 bot.add_cog(Searching_Commands(bot))
 bot.add_cog(Bot_Commands(bot))
 bot.add_cog(ManagementCmds(bot))
+bot.add_cog(CodeWarsStats(bot))
 
 if __name__ == '__main__':
     bot.run(secret_token)
