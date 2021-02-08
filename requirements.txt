@@ -13,7 +13,7 @@ google-auth==1.15.0
 google-auth-httplib2==0.0.3
 Google-Images-Search==1.1.1
 googleapis-common-protos==1.51.0
-httplib2==0.18.1
+httplib2==0.19.0
 idna==2.9
 multidict==4.7.6
 Pillow==7.1.2
