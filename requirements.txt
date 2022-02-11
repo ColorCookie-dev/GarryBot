@@ -17,7 +17,7 @@ httplib2==0.18.1
 idna==2.9
 multidict==4.7.6
 Pillow==7.1.2
-protobuf==3.12.1
+protobuf==3.15.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pyfiglet==0.8.post1
